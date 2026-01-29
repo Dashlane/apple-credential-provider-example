@@ -105,7 +105,7 @@ Settings → General → AutoFill & Passwords → Enable "Passkey Provider Demo"
 
 ### WebAuthn Implementation
 
-Based on [W3C WebAuthn Level 2](https://www.w3.org/TR/webauthn-2/) specification:
+Based on [W3C WebAuthn Level 3](https://www.w3.org/TR/webauthn-3/) specification:
 
 - **AuthenticatorData** - RP ID hash, flags (UP, UV, BE, BS, AT), sign counter, attested credential data
 - **COSEKey** - EC2 public key encoding per [RFC 8152](https://datatracker.ietf.org/doc/html/rfc8152)
@@ -127,7 +127,7 @@ MIT License
 
 ## References
 
-- [W3C WebAuthn Specification](https://www.w3.org/TR/webauthn-2/)
+- [W3C WebAuthn Specification](https://www.w3.org/TR/webauthn-3/)
 - [RFC 8152: COSE](https://datatracker.ietf.org/doc/html/rfc8152)
 - [Apple: Supporting Passkeys](https://developer.apple.com/documentation/authenticationservices/supporting-passkeys)
 - [ASCredentialProviderViewController](https://developer.apple.com/documentation/authenticationservices/ascredentialproviderviewcontroller)

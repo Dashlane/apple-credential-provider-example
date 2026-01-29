@@ -2,7 +2,8 @@
 // Shared
 //
 // WebAuthn Assertion (authentication) response builder.
-// Based on W3C WebAuthn Specification Section 6.3.3.
+// Based on W3C WebAuthn Level 3 Specification.
+// See: https://www.w3.org/TR/webauthn-3/#sctn-op-get-assertion
 
 import Foundation
 import CryptoKit
@@ -10,17 +11,22 @@ import CryptoKit
 /// Builds WebAuthn assertion responses for credential authentication.
 ///
 /// An assertion proves possession of a credential's private key
-/// by signing a challenge from the relying party.
+/// by signing a challenge from the relying party. The signature is computed
+/// over `authenticatorData || clientDataHash`.
+///
+/// - SeeAlso: [WebAuthn § 6.3.3 - The authenticatorGetAssertion Operation](https://www.w3.org/TR/webauthn-3/#sctn-op-get-assertion)
 public struct AssertionBuilder {
 
     /// Creates the signature base for an assertion.
     ///
-    /// The signature is computed over: authenticatorData || clientDataHash
+    /// Per WebAuthn § 6.3.3, the assertion signature is computed over the concatenation
+    /// of the authenticator data and the hash of the client data JSON.
     ///
     /// - Parameters:
     ///   - authenticatorData: The authenticator data bytes
     ///   - clientDataHash: SHA-256 hash of the client data JSON
-    /// - Returns: Data to be signed
+    /// - Returns: Data to be signed (`authenticatorData || clientDataHash`)
+    /// - SeeAlso: [WebAuthn § 6.3.3 - The authenticatorGetAssertion Operation](https://www.w3.org/TR/webauthn-3/#sctn-op-get-assertion)
     public static func buildSignatureBase(
         authenticatorData: [UInt8],
         clientDataHash: Data
@@ -32,11 +38,15 @@ public struct AssertionBuilder {
 
     /// Signs the assertion data with a P-256 private key.
     ///
+    /// Uses ECDSA with SHA-256 (ES256) as required by WebAuthn for P-256 keys.
+    /// The signature is returned in DER format.
+    ///
     /// - Parameters:
-    ///   - signatureBase: Data to sign (authenticatorData || clientDataHash)
+    ///   - signatureBase: Data to sign (`authenticatorData || clientDataHash`)
     ///   - privateKey: The credential's P-256 private key
     /// - Returns: DER-encoded ECDSA signature
     /// - Throws: If signing fails
+    /// - SeeAlso: [WebAuthn § 5.8.5 - Cryptographic Algorithm Identifier](https://www.w3.org/TR/webauthn-3/#sctn-alg-identifier)
     public static func sign(
         _ signatureBase: Data,
         with privateKey: P256.Signing.PrivateKey
@@ -47,13 +57,17 @@ public struct AssertionBuilder {
 
     /// Creates a complete assertion response.
     ///
+    /// This method builds the authenticator data for an assertion (without
+    /// attested credential data) and signs it with the credential's private key.
+    ///
     /// - Parameters:
-    ///   - relyingPartyId: The relying party identifier
-    ///   - clientDataHash: SHA-256 hash of client data JSON
-    ///   - signCount: Current signature counter value
+    ///   - relyingPartyId: The relying party identifier (must match registration)
+    ///   - clientDataHash: SHA-256 hash of client data JSON from the browser
+    ///   - signCount: Current signature counter value (should be incremented)
     ///   - privateKey: The credential's private key
-    /// - Returns: Tuple of (authenticatorData, signature)
+    /// - Returns: Tuple of (`authenticatorData`, `signature`)
     /// - Throws: If signing fails
+    /// - SeeAlso: [WebAuthn § 6.3.3 - The authenticatorGetAssertion Operation](https://www.w3.org/TR/webauthn-3/#sctn-op-get-assertion)
     public static func buildAssertion(
         relyingPartyId: String,
         clientDataHash: Data,

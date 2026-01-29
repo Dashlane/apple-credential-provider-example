@@ -1,12 +1,10 @@
 // Shared.swift
 // Shared
 //
-// Main module file - exports all public types from the Shared package.
+// WebAuthn data structures and utilities for passkey credential management.
+// Based on W3C WebAuthn Level 3: https://www.w3.org/TR/webauthn-3/
 
 import Foundation
 
 // Re-export SwiftCBOR for consumers
 @_exported import SwiftCBOR
-
-// WebAuthn types are automatically available as they're in the same module.
-// This file can be used for any top-level module utilities if needed.
