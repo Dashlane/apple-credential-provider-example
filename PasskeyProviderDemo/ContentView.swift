@@ -76,6 +76,11 @@ struct ContentView: View {
             .onAppear {
                 refreshPasskeys()
             }
+            .task {
+                // Sync all credentials to the identity store on app launch
+                // This ensures passkeys appear as AutoFill suggestions
+                await syncCredentialsToIdentityStore()
+            }
         }
     }
 
@@ -156,6 +161,15 @@ struct ContentView: View {
     private func refreshPasskeys() {
         passkeys = passkeyStore.getAllPasskeys()
             .sorted { $0.createdAt > $1.createdAt }
+    }
+
+    /// Synchronizes all credentials to the identity store for AutoFill support.
+    private func syncCredentialsToIdentityStore() async {
+        do {
+            try await passkeyStore.syncCredentialsToIdentityStore()
+        } catch {
+            print("Failed to sync credentials to identity store: \(error)")
+        }
     }
 
     /// Deletes a passkey from storage.
