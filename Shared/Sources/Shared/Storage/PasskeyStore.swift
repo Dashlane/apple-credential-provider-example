@@ -7,11 +7,13 @@
 import Foundation
 import CryptoKit
 import Security
+import AuthenticationServices
 
 /// Manages secure storage of passkey credentials.
 ///
 /// - Private keys are stored in the Keychain with `kSecAttrAccessibleAfterFirstUnlock`
 /// - Passkey metadata is stored in App Group UserDefaults for sharing between app and extension
+/// - Credential identities are synced to `ASCredentialIdentityStore` for AutoFill support
 public final class PasskeyStore {
 
     // MARK: - Constants
@@ -31,6 +33,9 @@ public final class PasskeyStore {
     private let userDefaults: UserDefaults
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+
+    /// Manager for syncing credentials to the identity store
+    private let identityStoreManager = CredentialIdentityStoreManager.shared
 
     // MARK: - Initialization
 
@@ -54,6 +59,9 @@ public final class PasskeyStore {
 
     /// Saves a passkey with its private key.
     ///
+    /// This method also adds the passkey to `ASCredentialIdentityStore` so it appears
+    /// as an AutoFill suggestion in iOS.
+    ///
     /// - Parameters:
     ///   - passkey: The passkey metadata to store
     ///   - privateKey: The P-256 private key for this passkey
@@ -71,6 +79,12 @@ public final class PasskeyStore {
 
         let data = try encoder.encode(passkeys)
         userDefaults.set(data, forKey: Self.passkeyMetadataKey)
+
+        // Add to credential identity store for AutoFill support
+        let manager = identityStoreManager
+        Task {
+            try? await manager.addCredentialIdentity(for: passkey)
+        }
     }
 
     /// Finds a passkey by credential ID.
@@ -103,7 +117,13 @@ public final class PasskeyStore {
     }
 
     /// Deletes a passkey and its private key.
+    ///
+    /// This method also removes the passkey from `ASCredentialIdentityStore` so it
+    /// no longer appears as an AutoFill suggestion.
     public func deletePasskey(credentialIdBase64: String) throws {
+        // Get the passkey before deletion (for identity store removal)
+        let passkeyToDelete = findPasskey(credentialIdBase64: credentialIdBase64)
+
         // Delete private key from Keychain
         try deletePrivateKey(forCredentialId: credentialIdBase64)
 
@@ -113,6 +133,36 @@ public final class PasskeyStore {
 
         let data = try encoder.encode(passkeys)
         userDefaults.set(data, forKey: Self.passkeyMetadataKey)
+
+        // Remove from credential identity store
+        if let passkey = passkeyToDelete {
+            let manager = identityStoreManager
+            Task {
+                try? await manager.removeCredentialIdentity(for: passkey)
+            }
+        }
+    }
+
+    // MARK: - Credential Identity Store Sync
+
+    /// Synchronizes all stored passkeys to the credential identity store.
+    ///
+    /// This performs a full replacement of all credential identities in
+    /// `ASCredentialIdentityStore` with the passkeys stored in this store.
+    /// Call this on app launch to ensure the identity store is up to date.
+    ///
+    /// - Throws: If the sync operation fails
+    public func syncCredentialsToIdentityStore() async throws {
+        let passkeys = getAllPasskeys()
+        try await identityStoreManager.syncAllCredentials(passkeys)
+    }
+
+    /// Returns whether the credential identity store is enabled.
+    ///
+    /// The store is enabled when the user has selected this app as a credential provider
+    /// in Settings > Passwords > Password Options.
+    public func isIdentityStoreEnabled() async -> Bool {
+        await identityStoreManager.isEnabled()
     }
 
     // MARK: - Private Key Operations (Keychain)
